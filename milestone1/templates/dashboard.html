@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frameset Dashboard</title>
+</head>
+<frameset cols="30%,70%">
+    <frameset rows="10%,90%">
+        <frame src="{{ url_for('top') }}?user={{ user }}" name="top">
+        <frame src="{{ url_for('left') }}?user={{ user }}" name="left">
+    </frameset>
+    <frame src="{{ url_for('right') }}?user={{ user }}" name="right">
+</frameset>
+</html>
