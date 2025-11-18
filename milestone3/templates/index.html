@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="{{ url_for('static', filename='images/logo1.png') }}">
+  <title>Crowd Count Dashboard</title>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Poppins", sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      background: linear-gradient(135deg, #e0f7fa, #ffffff);
+      color: #1e293b;
+    }
+
+    /* ==== SIDEBAR ==== */
+    .sidebar {
+      width: 85px;
+      background: linear-gradient(180deg, #001F3F, #005C97, #00C9A7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 0;
+      transition: width 0.35s ease;
+      box-shadow: 5px 0 25px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(6px);
+      z-index: 3;
+    }
+
+    .sidebar:hover { width: 240px; }
+
+    .sidebar-header {
+      font-size: 22px;
+      font-weight: 700;
+      color: #00FFC6;
+      text-align: center;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      text-shadow: 0 0 10px rgba(0, 255, 198, 0.6);
+    }
+    .sidebar:hover .sidebar-header { opacity: 1; }
+
+    .menu { flex: 1; width: 100%; margin-top: 10px; }
+
+    .menu a {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      color: #d1e9ff;
+      text-decoration: none;
+      padding: 14px 20px;
+      position: relative;
+      transition: all 0.25s ease;
+      border-left: 4px solid transparent;
+      font-size: 15px;
+    }
+
+    .menu a svg {
+      width: 24px; height: 24px;
+      fill: currentColor;
+      transition: transform 0.25s ease;
+    }
+
+    .menu a span { white-space: nowrap; opacity: 0; transition: opacity 0.35s ease; }
+    .sidebar:hover a span { opacity: 1; }
+
+    .menu a:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-left: 4px solid #00FFC6;
+      transform: scale(1.02);
+      box-shadow: inset 0 0 12px rgba(0, 255, 230, 0.25);
+    }
+
+    .menu a.active {
+      background: linear-gradient(90deg, rgba(0,255,198,0.25), rgba(0,255,255,0.15));
+      color: #00FFC6;
+      border-left: 4px solid #00FFC6;
+      font-weight: 600;
+      text-shadow: 0 0 5px rgba(0, 255, 200, 0.4);
+    }
+
+    /* ==== HEADER ==== */
+    .header {
+      height: 70px;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 35px;
+      border-bottom: 2px solid rgba(0, 200, 255, 0.3);
+      box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .header h2 {
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #001F3F, #0066FF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    #user_name {
+      color: #00FFC6;
+      font-weight: 600;
+      background: rgba(0, 255, 230, 0.15);
+      padding: 6px 15px;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 255, 198, 0.25);
+      font-size: 14px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    /* ==== CONTENT AREA ==== */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, #EAF8FF, #FFFFFF);
+      overflow: hidden;
+    }
+
+    /* Dashboard area for comparison charts */
+    .dashboard-container {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      padding: 25px;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    .chart-section {
+      flex: 3;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 16px;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      transition: transform 0.3s ease;
+    }
+
+    .chart-section:hover {
+      transform: scale(1.02);
+      box-shadow: 0 6px 25px rgba(0, 255, 200, 0.25);
+    }
+
+    iframe#I_frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 16px;
+      background: transparent;
+    }
+
+    .stats-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .stat-card {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 20px rgba(0, 255, 200, 0.2);
+    }
+
+    .stat-title {
+      font-size: 15px;
+      color: #007bff;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #001F3F;
+      text-shadow: 0 0 10px rgba(0, 255, 200, 0.15);
+    }
+
+    .stat-sub {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #00FFC6, #007BFF);
+      border-radius: 10px;
+    }
+
+    @media (max-width: 1000px) {
+      .dashboard-container {
+        flex-direction: column;
+      }
+      .stats-panel {
+        flex-direction: row;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div>
+      <div class="sidebar-header">Crowd Count</div>
+      <div class="menu">
+        <a class="active" href="/home" title="Home">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 9.75L12 3l9 6.75V21a1 1 0 0 1-1 1h-5.25v-6.75h-5.5V22H4a1 1 0 0 1-1-1V9.75z"/></svg>
+          <span>Home</span>
+        </a>
+        {% if is_admin %}
+        <a href="/vid_analy" title="Video Analysis">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2.586l3.707-3.707a1 1 0 0 1 1.707.707v12.828a1 1 0 0 1-1.707.707L16 15.414V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z"/></svg>
+          <span>Video Analysis</span>
+        </a>
+        <a href="/cam_manage" title="Camera Management">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M10 4h4l2 2h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-2zm2 5a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
+          </svg>
+          <span>Camera Management</span>
+        </a>
+        {% endif %}
+        <a href="/signout" title="Signout">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 17v-2h4v-2h-4V9l-5 4 5 4zm-4 3h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3h2V6h10v12H6v-3H4v3a2 2 0 0 0 2 2z"/></svg>
+          <span>Signout</span>
+        </a>
+      </div>
+    </div>
+    <div class="sidebar-footer">&copy; 2025 CrowdCount</div>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div class="content">
+    <div class="header">
+      <h2>Comparison Dashboard</h2>
+      <h2 id="user_name">USER: {{username}}</h2>
+    </div>
+
+    <div class="dashboard-container">
+      <!-- Chart area -->
+      <div class="chart-section">
+        <iframe id="I_frame" src="{{ url_for('home') }}"></iframe>
+      </div>
+
+      <!-- Info cards -->
+      <div class="stats-panel">
+        <div class="stat-card">
+          <div class="stat-title">Total Active Cameras</div>
+          <div class="stat-value">{{ total_cameras or 0 }}</div>
+          <div class="stat-sub">Monitored zones live</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-title">Average Crowd Count</div>
+          <div class="stat-value">{{ avg_count or 0 }}</div>
+          <div class="stat-sub">Based on last 15 logs</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-title">Peak Density (%)</div>
+          <div class="stat-value">{{ peak_density or 0 }}</div>
+          <div class="stat-sub">Highest zone density</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const iframe = document.getElementById("I_frame");
+    document.querySelectorAll(".menu a").forEach(link => {
+      link.addEventListener("click", function (e) {
+        e.preventDefault();
+        const linkUrl = this.getAttribute("href");
+        if (linkUrl === '/signout') {
+          window.location.href = linkUrl;
+          return;
+        }
+        const currentActive = document.querySelector(".menu a.active");
+        if (currentActive) currentActive.classList.remove("active");
+        this.classList.add("active");
+        iframe.src = linkUrl;
+      });
+    });
+         // 🔄 Refresh dashboard stats every 5 seconds
+  setInterval(() => {
+    fetch('/home_stats')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) {
+          const cards = document.querySelectorAll(".stat-value");
+          if (cards.length >= 3) {
+            cards[0].textContent = data.total_cameras;
+            cards[1].textContent = data.avg_count;
+            cards[2].textContent = data.peak_density;
+          }
+        }
+      })
+      .catch(err => console.error('Error updating stats:', err));
+  }, 5000);
+  </script>
+</body>
+</html>

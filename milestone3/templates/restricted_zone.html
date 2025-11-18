@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Define AOI Rectangle - {{ area_name }}</title>
+
+    <style>
+        body { margin: 0; background-color: #f4f4f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: Arial, sans-serif; }
+        .container { position: relative; max-width: 90%; border-radius: 12px; overflow: hidden; }
+        .video-feed { display: block; width: 100%; height: auto; }
+        #drawingCanvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
+
+        .controls { padding: 15px; background: white; text-align: center; }
+        .info-box { background: #e6f7ff; border: 1px solid #91d5ff; padding: 10px; border-radius: 6px; }
+        .coords { margin-top: 6px; font-size: 14px; color: #0056b3; }
+
+        .btn { padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; margin: 5px; }
+        .btn-save { background: #059669; color: white; }
+        .btn-reset { background: #ffc107; color: #222; }
+        .btn-cancel { background: #6c757d; color: white; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <img id="videoFeed" class="video-feed"
+             src="{{ url_for('video_feed', area_name=area_name) }}">
+        <canvas id="drawingCanvas"></canvas>
+
+        <div class="controls">
+            <div class="info-box">
+                <p>Click **two opposite corners** to define a rectangular AOI.</p>
+                <div class="coords">Point 1: <span id="pt1">--</span></div>
+                <div class="coords">Point 2: <span id="pt2">--</span></div>
+            </div>
+            <button class="btn btn-reset" onclick="resetCanvas()">Reset</button>
+            <button id="saveBtn" class="btn btn-save" disabled onclick="saveAOI()">Save AOI</button>
+            <button class="btn btn-cancel" onclick="window.history.back()">Cancel</button>
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById("drawingCanvas");
+const ctx = canvas.getContext("2d");
+const video = document.getElementById("videoFeed");
+
+let points = [];
+const saveBtn = document.getElementById("saveBtn");
+const areaName = "{{ area_name }}";
+
+video.onload = setupCanvas;
+video.onloadeddata = setupCanvas;
+window.onresize = setupCanvas;
+
+function setupCanvas() {
+    canvas.width = video.width;
+    canvas.height = video.height;
+    canvas.style.width = video.clientWidth + "px";
+    canvas.style.height = video.clientHeight + "px";
+}
+
+function getCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+        x: Math.round((e.clientX - rect.left) * scaleX),
+        y: Math.round((e.clientY - rect.top) * scaleY)
+    };
+}
+
+canvas.addEventListener("click", e => {
+    if (points.length >= 2) return;
+
+    points.push(getCoords(e));
+    drawRectangle();
+
+    if (points.length === 2) {
+        saveBtn.disabled = false;
+    }
+});
+
+function drawRectangle() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (points.length === 1) {
+        const p = points[0];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = "blue";
+        ctx.fill();
+    }
+
+    if (points.length === 2) {
+        const [p1, p2] = points;
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(
+            Math.min(p1.x, p2.x),
+            Math.min(p1.y, p2.y),
+            Math.abs(p2.x - p1.x),
+            Math.abs(p2.y - p1.y)
+        );
+
+        // Filled transparent area
+        ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
+        ctx.fillRect(
+            Math.min(p1.x, p2.x),
+            Math.min(p1.y, p2.y),
+            Math.abs(p2.x - p1.x),
+            Math.abs(p2.y - p1.y)
+        );
+
+        document.getElementById("pt1").textContent = `(${p1.x}, ${p1.y})`;
+        document.getElementById("pt2").textContent = `(${p2.x}, ${p2.y})`;
+    }
+}
+
+function resetCanvas() {
+    points = [];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    document.getElementById("pt1").textContent = "--";
+    document.getElementById("pt2").textContent = "--";
+    saveBtn.disabled = true;
+}
+
+async function saveAOI() {
+    if (points.length !== 2) return alert("Select 2 points");
+
+    const rectCoords = {
+        x1: Math.min(points[0].x, points[1].x),
+        y1: Math.min(points[0].y, points[1].y),
+        x2: Math.max(points[0].x, points[1].x),
+        y2: Math.max(points[0].y, points[1].y)
+    };
+
+    const res = await fetch("/set_aoi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ areaName: areaName, rect_coords: rectCoords })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+        alert("AOI Rectangle Saved!");
+        window.location.href = "/cam_manage";
+    } else {
+        alert("Error: " + data.message);
+    }
+}
+</script>
+
+</body>
+</html>
