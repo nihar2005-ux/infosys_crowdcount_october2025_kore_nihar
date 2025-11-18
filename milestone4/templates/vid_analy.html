@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Analysis Dashboard</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Poppins', Arial, sans-serif;
+            background: linear-gradient(135deg, #eef2ff, #fdf2f8);
+            min-height: 100vh;
+            padding: 1rem;
+            color: #1e293b;
+        }
+
+        #Analysis_hedding {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            color: #e11d48;
+            text-shadow: 0 2px 10px rgba(225,29,72,0.2);
+        }
+
+        /* GRID */
+        .camera-grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* CAMERA CARD */
+        .cam-card {
+            background: rgba(255, 255, 255, 0.65);
+            border-radius: 18px;
+            padding: 1rem 1.2rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            transition: 0.3s ease-in-out;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.4);
+            position: relative;
+        }
+
+        .cam-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+        }
+
+        .cam-card h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 0.4rem;
+        }
+
+        .cam-card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 0.7rem;
+        }
+
+        .cam-card img {
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+        }
+
+        /* LIVE STATUS */
+        .live-status {
+            background: #f0fdf4;
+            border-left: 5px solid #10b981;
+            padding: 0.8rem;
+            border-radius: 12px;
+        }
+
+        .live-status span {
+            display: block;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #065f46;
+        }
+
+        .crowd-count {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #4f46e5;
+            margin-top: 0.4rem;
+            text-shadow: 0 1px 3px rgba(79,70,229,0.2);
+        }
+
+        /* ENLARGED VIEW */
+        .cam-card.enlarged {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: none;
+            z-index: 999;
+            overflow-y: auto;
+            padding: 2.5rem;
+            border-radius: 0;
+            animation: zoomIn 0.3s ease;
+        }
+
+        @keyframes zoomIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .cam-card.enlarged img {
+            width: 100%;
+            border-radius: 0;
+            box-shadow: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2 id="Analysis_hedding">Video Analysis Dashboard</h2>
+
+    <div class="camera-grid-container">
+        {% if cameras %}
+            {% for cam in cameras %}
+            <div class="cam-card" onclick="selected_video(this)" data-area-name="{{ cam.areaName }}">
+                <h3>{{ cam.areaName }}</h3>
+                <p>Source Type: {{ cam.sourceType }}</p>
+
+                <img src="{{ url_for('video_feed', area_name=cam.areaName) }}"
+                     alt="Live Analysis Stream">
+
+                <div class="live-status">
+                    <span>Status: Live</span>
+                    <div class="crowd-count">
+                        Current Crowd: <span id="count-{{ cam.areaName }}">--</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No active analysis streams available. Add a camera or video on the Cam Management page.</p>
+        {% endif %}
+    </div>
+
+    <script>
+        const cameraData = JSON.parse('{{ cameras | tojson | safe }}');
+        const pollingIntervals = {};
+
+        async function pollCount(areaName) {
+            try {
+                const response = await fetch(`/get_count/${areaName}`);
+                const data = await response.json();
+
+                const countElement = document.getElementById(`count-${areaName}`);
+                if (countElement) {
+                    countElement.textContent = data.count;
+                }
+
+                if (!data.isActive) {
+                    clearInterval(pollingIntervals[areaName]);
+                }
+            } catch (error) {
+                console.error(`Error fetching count for ${areaName}:`, error);
+            }
+        }
+
+        function startPolling() {
+            if (!cameraData || cameraData.length === 0) return;
+
+            cameraData.forEach(cam => {
+                pollingIntervals[cam.areaName] = setInterval(() => {
+                    pollCount(cam.areaName);
+                }, 500);
+
+                pollCount(cam.areaName);
+            });
+        }
+
+        window.addEventListener('beforeunload', () => {
+            Object.values(pollingIntervals).forEach(clearInterval);
+        });
+
+        window.onload = startPolling;
+
+        function selected_video(element) {
+            element.classList.toggle("enlarged");
+        }
+    </script>
+
+</body>
+</html>
