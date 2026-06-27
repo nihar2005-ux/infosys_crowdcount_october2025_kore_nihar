@@ -1,1 +1,1 @@
-# infosys_crowdcount_october2025_kore_nihar
+# CrowdCount_Detection_System
